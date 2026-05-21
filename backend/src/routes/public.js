@@ -35,7 +35,9 @@ router.get('/charger/:qr', (req, res) => {
     max_minutes: c.max_minutes,
     status: c.status,
     online: !!c.online,
-    dev_mode: config.env !== 'production',
+    // dev_mode is true when this is a non-prod demo environment. Tuya mock
+    // is the cleanest indicator: any real production deploy uses real Tuya.
+    dev_mode: config.tuya.mock || config.env !== 'production',
     wompi_configured: wompiConfigured,
   });
 });
@@ -158,7 +160,9 @@ router.get('/session/:id', safetyLazy.middleware, (req, res) => {
 // the "Simular pago aprobado" button on the payment page in dev.
 // ---------------------------------------------------------------------------
 router.post('/dev/simulate-approval', async (req, res) => {
-  if (config.env === 'production') return res.status(404).end();
+  // Allow whenever we're running against the Tuya mock (= a demo deploy).
+  // Real production has tuya.mock = false and this endpoint is unreachable.
+  if (!config.tuya.mock && config.env === 'production') return res.status(404).end();
   const { reference } = req.body || {};
   if (!reference) return res.status(400).json({ error: 'reference_required' });
   const result = await payment.simulateApproval(reference);
