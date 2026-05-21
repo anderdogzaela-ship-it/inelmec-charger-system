@@ -21,6 +21,10 @@ const router = express.Router();
 router.get('/charger/:qr', (req, res) => {
   const c = chargers.findByQrCode(req.params.qr);
   if (!c) return res.status(404).json({ error: 'charger_not_found' });
+  // Detect placeholder Wompi credentials so the frontend can gray out the
+  // "Pagar con Wompi" button (which would otherwise dead-end at Wompi's
+  // checkout with "no se pudo cargar la información del undefined").
+  const wompiConfigured = !/(^pub_(test|prod)_demo$|x{4,}|^pub_test_xxx)/i.test(config.wompi.publicKey);
   res.json({
     qr_code: c.qr_code,
     display_name: c.display_name,
@@ -32,6 +36,7 @@ router.get('/charger/:qr', (req, res) => {
     status: c.status,
     online: !!c.online,
     dev_mode: config.env !== 'production',
+    wompi_configured: wompiConfigured,
   });
 });
 

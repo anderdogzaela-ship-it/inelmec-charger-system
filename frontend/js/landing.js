@@ -56,7 +56,17 @@ async function load() {
 
   // Show dev simulate button when server is in development mode
   if (charger.dev_mode) {
-    document.getElementById('dev-simulate').style.display = 'block';
+    document.getElementById('dev-simulate').style.display = 'flex';
+  }
+
+  // If Wompi credentials are placeholders, disable the real checkout button
+  // so users don't dead-end at Wompi's "no se pudo cargar" error page.
+  if (!charger.wompi_configured) {
+    const wb = document.getElementById('pay-btn');
+    wb.disabled = true;
+    wb.title = 'Configura WOMPI_PUBLIC_KEY en variables de entorno para habilitar';
+    document.getElementById('wompi-note').style.display = 'block';
+    document.getElementById('wompi-trust').style.display = 'none';
   }
 }
 
@@ -85,7 +95,11 @@ function selectMinutes(m) {
   });
   const total = Math.round((charger.rate_cop_per_hour * m) / 60);
   document.getElementById('total').textContent = COP(total);
-  document.getElementById('pay-btn').disabled = false;
+  document.getElementById('dev-simulate').disabled = false;
+  // Only enable the real Wompi button if credentials are configured.
+  if (charger.wompi_configured) {
+    document.getElementById('pay-btn').disabled = false;
+  }
 }
 
 async function initiatePayment(simulate = false) {
@@ -93,7 +107,9 @@ async function initiatePayment(simulate = false) {
   const payBtn = document.getElementById('pay-btn');
   const simBtn = document.getElementById('dev-simulate');
   payBtn.disabled = true; simBtn.disabled = true;
-  payBtn.textContent = 'Creando sesión...';
+  const activeBtn = simulate ? simBtn : payBtn;
+  const originalText = activeBtn.textContent;
+  activeBtn.textContent = 'Creando sesión...';
 
   let res;
   try {
@@ -109,14 +125,14 @@ async function initiatePayment(simulate = false) {
     });
   } catch {
     payBtn.disabled = false; simBtn.disabled = false;
-    payBtn.textContent = 'Pagar con Wompi';
+    activeBtn.textContent = originalText;
     alert('No pudimos conectar con el servidor. Intenta de nuevo.');
     return;
   }
 
   if (!res.ok) {
     payBtn.disabled = false; simBtn.disabled = false;
-    payBtn.textContent = 'Pagar con Wompi';
+    activeBtn.textContent = originalText;
     const err = await res.json().catch(() => ({}));
     alert('Error: ' + (err.error || res.statusText));
     return;

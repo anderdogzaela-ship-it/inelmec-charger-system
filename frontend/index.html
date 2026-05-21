@@ -68,11 +68,14 @@
         <span class="value text-bright" id="total" style="font-size:22px">—</span>
       </div>
 
-      <button id="pay-btn" class="btn" style="margin-top:16px" disabled>Pagar con Wompi</button>
-      <button id="dev-simulate" class="btn btn-ghost" style="margin-top:10px; display:none">
-        Simular pago aprobado (DEV)
+      <button id="dev-simulate" class="btn" style="margin-top:16px; display:none" disabled>
+        ▶ Simular pago aprobado (Demo)
       </button>
-      <p class="muted text-small" style="text-align:center; margin-top:16px">
+      <button id="pay-btn" class="btn btn-secondary" style="margin-top:10px" disabled>Pagar con Wompi</button>
+      <p id="wompi-note" class="muted text-small" style="text-align:center; margin-top:12px; display:none">
+        ⚠ Wompi no configurado en este entorno. Usa el botón demo de arriba.
+      </p>
+      <p id="wompi-trust" class="muted text-small" style="text-align:center; margin-top:16px">
         🔒 Pago seguro procesado por Wompi
       </p>
     </div>
