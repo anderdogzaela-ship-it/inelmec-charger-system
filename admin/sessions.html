@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Transacciones · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="shell">
+    <div id="sidebar-mount"></div>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">Páginas / Transacciones</div>
+          <h1>Transacciones</h1>
+        </div>
+        <div class="grow"></div>
+        <button class="btn ghost sm" id="refresh-btn">↻ Actualizar</button>
+      </header>
+
+      <section class="card elevated">
+        <div class="head">
+          <h2>Historial de sesiones</h2>
+          <span class="text-muted text-xs" id="last-update"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Cargador</th>
+                <th>Min</th>
+                <th>Monto</th>
+                <th>Pago</th>
+                <th>Activación</th>
+                <th>Activado</th>
+                <th>Completado</th>
+                <th>Notas</th>
+              </tr>
+            </thead>
+            <tbody id="list">
+              <tr><td colspan="10" class="empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').outerHTML = renderShell('sessions');
+    document.getElementById('refresh-btn').addEventListener('click', refresh);
+
+    async function refresh() {
+      const data = await AdminAPI.get('/sessions?limit=200');
+      const list = document.getElementById('list');
+      if (!data.sessions.length) {
+        list.innerHTML = '<tr><td colspan="10" class="empty">Sin transacciones todavía</td></tr>';
+        return;
+      }
+      list.innerHTML = data.sessions.map((s) => `
+        <tr>
+          <td class="mono text-xs">${s.id.slice(0, 8)}</td>
+          <td class="text-xs">${fmt.date(s.created_at)}</td>
+          <td>
+            <strong>${s.charger_name}</strong>
+            <div class="mono text-xs text-muted">${s.qr_code}</div>
+          </td>
+          <td>${s.minutes_purchased}</td>
+          <td><strong>${fmt.cop(s.amount_cop)}</strong></td>
+          <td>${fmt.statusPill(s.payment_status)}</td>
+          <td>${fmt.statusPill(s.activation_status)}</td>
+          <td class="text-xs text-muted">${s.activated_at ? fmt.time(s.activated_at) : '—'}</td>
+          <td class="text-xs text-muted">${s.completed_at ? fmt.time(s.completed_at) : (s.expected_end_at ? '~' + fmt.time(s.expected_end_at) : '—')}</td>
+          <td class="text-xs ${s.failure_reason ? 'text-red' : 'text-dim'}">${s.failure_reason || '—'}</td>
+        </tr>
+      `).join('');
+      document.getElementById('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO');
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

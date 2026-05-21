@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0B0F14">
+  <title>INELMEC EV Hub — Cargador eléctrico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="brand">
+    <div class="logo-row">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo">INELMEC</div>
+        <div class="tag">EV Hub · Cargador comunal</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="loading" class="card">
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+      <p class="muted" style="text-align:center; margin-top:10px">Cargando información del cargador…</p>
+    </div>
+
+    <div id="not-found" class="card" style="display:none">
+      <h1>Cargador no encontrado</h1>
+      <p class="muted">No pudimos identificar el cargador escaneado. Verifica el código QR.</p>
+    </div>
+
+    <div id="unavailable" class="card" style="display:none">
+      <h1>Cargador no disponible</h1>
+      <p class="muted" id="unavailable-reason"></p>
+    </div>
+
+    <div id="charger-info" class="card" style="display:none">
+      <h1 id="ch-name"></h1>
+      <p class="muted" id="ch-location"></p>
+      <div class="row">
+        <span class="label">Estado</span>
+        <span id="ch-status" class="status-pill available">Disponible</span>
+      </div>
+      <div class="row">
+        <span class="label">Tarifa</span>
+        <span class="value text-bright" id="ch-rate"></span>
+      </div>
+    </div>
+
+    <div id="select-time" class="card" style="display:none">
+      <h2>Selecciona el tiempo de carga</h2>
+      <div class="minutes-grid" id="minutes-grid"></div>
+
+      <div style="margin-top:18px">
+        <label class="muted text-small">Correo electrónico <span class="text-amber">(opcional)</span></label>
+        <input type="email" id="email" placeholder="tu@correo.com">
+      </div>
+      <div style="margin-top:10px">
+        <label class="muted text-small">Teléfono <span class="text-amber">(opcional)</span></label>
+        <input type="tel" id="phone" placeholder="3001234567">
+      </div>
+
+      <div class="row" style="border-top:1px solid var(--border); margin-top:18px; padding-top:14px">
+        <span class="label">Total a pagar</span>
+        <span class="value text-bright" id="total" style="font-size:22px">—</span>
+      </div>
+
+      <button id="pay-btn" class="btn" style="margin-top:16px" disabled>Pagar con Wompi</button>
+      <button id="dev-simulate" class="btn btn-ghost" style="margin-top:10px; display:none">
+        Simular pago aprobado (DEV)
+      </button>
+      <p class="muted text-small" style="text-align:center; margin-top:16px">
+        🔒 Pago seguro procesado por Wompi
+      </p>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <strong>INELMEC S.A.S.</strong> · 40 años en el sector eléctrico colombiano<br>
+    Soporte · soporte@inelmec.com
+  </footer>
+
+  <script src="/js/landing.js"></script>
+</body>
+</html>

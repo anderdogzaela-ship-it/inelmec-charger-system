@@ -1,0 +1,12 @@
+node_modules
+data
+.env
+*.log
+.git
+.DS_Store
+.vscode
+.idea
+coverage
+scripts/e2e-test.js
+docs
+README.md

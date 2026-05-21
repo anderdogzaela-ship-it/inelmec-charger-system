@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Webhooks · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="shell">
+    <div id="sidebar-mount"></div>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">Páginas / Webhooks</div>
+          <h1>Webhooks de Wompi</h1>
+        </div>
+        <div class="grow"></div>
+        <button class="btn ghost sm" id="refresh-btn">↻</button>
+      </header>
+
+      <section class="card elevated mb-md">
+        <p class="text-muted text-small" style="margin:0">
+          🔐 Eventos con <strong class="text-red">firma inválida</strong> son rechazados con HTTP 401 antes de procesarse.
+          La validación es HMAC-SHA256 con timing-safe compare contra <span class="mono">WOMPI_EVENTS_SECRET</span>.
+        </p>
+      </section>
+
+      <section class="card elevated">
+        <div class="head">
+          <h2>Eventos recibidos</h2>
+          <span class="text-muted text-xs" id="last-update"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Recibido</th>
+                <th>Proveedor</th>
+                <th>Evento</th>
+                <th>Firma</th>
+                <th>Estado</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="list">
+              <tr><td colspan="7" class="empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').outerHTML = renderShell('webhooks');
+    document.getElementById('refresh-btn').addEventListener('click', refresh);
+
+    async function refresh() {
+      const data = await AdminAPI.get('/webhooks?limit=200');
+      const list = document.getElementById('list');
+      if (!data.webhooks.length) {
+        list.innerHTML = '<tr><td colspan="7" class="empty">Sin webhooks recibidos todavía</td></tr>';
+        return;
+      }
+      list.innerHTML = data.webhooks.map((w) => `
+        <tr>
+          <td class="mono text-xs">${w.id}</td>
+          <td class="text-xs">${fmt.date(w.received_at)}</td>
+          <td>${w.provider}</td>
+          <td class="mono text-xs">${w.event_type || '—'}</td>
+          <td>${w.signature_valid
+            ? '<span class="pill green">Válida</span>'
+            : '<span class="pill red">INVÁLIDA</span>'}</td>
+          <td>${w.processed
+            ? '<span class="pill blue">Procesado</span>'
+            : '<span class="pill amber">Pendiente</span>'}</td>
+          <td class="text-xs ${w.error ? 'text-red' : 'text-dim'}">${w.error || '—'}</td>
+        </tr>
+      `).join('');
+      document.getElementById('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO');
+    }
+
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

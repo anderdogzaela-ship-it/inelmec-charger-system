@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0B0F14">
+  <title>INELMEC EV Hub — Estado de la carga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="brand">
+    <div class="logo-row">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo">INELMEC</div>
+        <div class="tag">EV Hub · Estado de carga</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="state-pending" class="card" style="display:none">
+      <h2>Esperando confirmación de pago</h2>
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+      <p class="muted" style="text-align:center">
+        Wompi está procesando tu pago. No cierres esta página.
+      </p>
+    </div>
+
+    <div id="state-activating" class="card" style="display:none">
+      <h2>Activando cargador…</h2>
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+      <p class="muted" style="text-align:center">
+        Pago recibido. Estamos encendiendo el cargador.<br>
+        Esto toma entre 1 y 15 segundos.
+      </p>
+      <div id="activation-timer" class="muted text-small" style="text-align:center; margin-top:8px"></div>
+    </div>
+
+    <div id="state-active" class="card" style="display:none">
+      <div style="display:flex; justify-content:center; margin-bottom:14px">
+        <span class="charging-dot">Cargador activo</span>
+      </div>
+
+      <p class="muted" id="active-charger-name" style="text-align:center; margin-bottom:8px"></p>
+
+      <div class="big-number">
+        <span id="time-remaining">--:--</span>
+        <span class="unit">restante</span>
+      </div>
+      <div class="progress" style="margin-top:16px"><div class="bar" id="progress-bar"></div></div>
+
+      <div class="row" style="margin-top:18px">
+        <span class="label">Tiempo pagado</span>
+        <span class="value" id="time-purchased"></span>
+      </div>
+      <div class="row">
+        <span class="label">Termina aprox.</span>
+        <span class="value" id="end-time"></span>
+      </div>
+      <div class="alert info" style="margin-top:14px">
+        El cargador se apagará automáticamente cuando termine el tiempo.
+        No es necesario que regreses a esta pantalla.
+      </div>
+    </div>
+
+    <div id="state-completed" class="card" style="display:none">
+      <h2 class="text-bright">✓ Carga completada</h2>
+      <p class="muted" style="margin-top:6px">Gracias por usar INELMEC EV Hub. El cargador ya se apagó automáticamente.</p>
+      <a href="/" class="btn" style="margin-top:14px; text-decoration:none">Inicio</a>
+    </div>
+
+    <div id="state-failed" class="card" style="display:none">
+      <h2>No pudimos activar el cargador</h2>
+      <div class="alert error" id="failure-message"></div>
+      <p class="muted" style="margin-top:14px">
+        Tu pago fue procesado pero el cargador no respondió. Nuestro equipo ya fue
+        notificado y se contactará contigo para reembolso o reactivación manual.
+      </p>
+      <p class="muted text-small">Referencia: <span class="mono" id="failure-ref"></span></p>
+    </div>
+
+    <div class="card" id="session-debug" style="display:none">
+      <h2 class="muted" style="font-size:13px; text-transform:uppercase; letter-spacing:0.5px">Detalles de la sesión</h2>
+      <pre style="font-size:11px; background:var(--bg-2); padding:12px; border-radius:10px; overflow:auto; color: var(--t-secondary); border: 1px solid var(--border)" id="debug-data"></pre>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <strong>INELMEC S.A.S.</strong> · Soporte · soporte@inelmec.com
+  </footer>
+
+  <script src="/js/status.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ingresar · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="brand-row">
+        <div class="logo-icon">⚡</div>
+        <div class="brand-text">INELMEC<small>EV Hub Admin</small></div>
+      </div>
+
+      <h1>Bienvenido de vuelta</h1>
+      <div class="sub">Ingresa para gestionar cargadores, transacciones y auditoría.</div>
+
+      <form id="login-form">
+        <label class="label">Correo</label>
+        <input class="field" type="email" id="email" placeholder="admin@inelmec.com" required value="admin@inelmec.com">
+        <label class="label" style="margin-top:14px">Contraseña</label>
+        <input class="field" type="password" id="password" placeholder="••••••••" required value="inelmec2026">
+        <button type="submit" class="btn full" style="margin-top:18px">Ingresar</button>
+        <div id="err" class="text-small text-red" style="margin-top:10px; display:none"></div>
+      </form>
+
+      <div class="text-xs text-dim" style="margin-top:24px; text-align:center">
+        Credenciales pre-llenadas para demo
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('err');
+      errEl.style.display = 'none';
+      try {
+        const r = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!r.ok) {
+          const j = await r.json();
+          errEl.textContent = 'Error: ' + (j.error || r.statusText);
+          errEl.style.display = 'block';
+          return;
+        }
+        const data = await r.json();
+        localStorage.setItem('inelmec_admin_token', data.token);
+        localStorage.setItem('inelmec_admin_user', JSON.stringify(data.admin));
+        location.href = '/admin/dashboard.html';
+      } catch {
+        errEl.textContent = 'Error de red';
+        errEl.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

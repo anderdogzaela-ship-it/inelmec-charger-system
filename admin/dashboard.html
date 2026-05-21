@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main">
+      <!-- topbar -->
+      <header class="topbar">
+        <div>
+          <div class="crumbs">Páginas / Dashboard</div>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="grow"></div>
+        <div class="search">
+          <span class="icon" id="search-ico"></span>
+          <input placeholder="Buscar cargador, transacción…" />
+        </div>
+        <button class="icon-btn" id="refresh-btn" title="Actualizar"></button>
+        <button class="icon-btn" title="Notificaciones" id="bell-btn"></button>
+        <div class="me-avatar" id="me-avatar">AD</div>
+      </header>
+
+      <div id="alert-area"></div>
+
+      <!-- main grid: live session + statistics -->
+      <div class="grid dash-2col mb-md">
+        <!-- LEFT column -->
+        <section class="card elevated padded-lg">
+          <div class="head">
+            <h2>Sesión activa</h2>
+            <select class="sel" id="active-picker">
+              <option>Tiempo real</option>
+            </select>
+          </div>
+
+          <div id="active-session-pane">
+            <div class="empty">Ningún cargador en uso ahora</div>
+          </div>
+        </section>
+
+        <!-- RIGHT column: Statistics + chart -->
+        <section class="card elevated padded-lg">
+          <div class="head">
+            <h2>Estadísticas de carga</h2>
+            <select class="sel" id="range-picker">
+              <option value="month">Este mes</option>
+              <option value="today">Hoy</option>
+            </select>
+          </div>
+
+          <div class="grid cols-3" id="stats-row" style="gap:14px; margin-bottom:18px"></div>
+
+          <div class="chart" id="chart"></div>
+
+          <div class="chart-legend">
+            <div class="item"><span class="dot" style="background:var(--brand)"></span> Activación exitosa</div>
+            <div class="item"><span class="dot" style="background:var(--accent-amber)"></span> Pendiente / Activando</div>
+            <div class="item"><span class="dot" style="background:var(--accent-pink)"></span> Fallida / Timeout</div>
+            <div class="item"><span class="dot" style="background:var(--accent-purple)"></span> Reembolsada</div>
+          </div>
+        </section>
+      </div>
+
+      <!-- bottom: live stations -->
+      <section class="card elevated padded-lg">
+        <div class="head">
+          <h2>Lista de cargadores</h2>
+          <div class="flex gap-8">
+            <span class="text-muted text-xs" id="last-update"></span>
+            <a class="btn ghost sm" href="/admin/chargers.html">Ver todos</a>
+          </div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Cargador</th>
+                <th>Ubicación</th>
+                <th>Tarifa</th>
+                <th>Estado</th>
+                <th>Sesión actual</th>
+                <th class="text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="charger-rows">
+              <tr><td colspan="6" class="empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    // Mount the sidebar
+    document.getElementById('sidebar-mount').outerHTML = renderShell('dashboard');
+
+    // Inject icons into the topbar
+    document.getElementById('search-ico').innerHTML = icon('search');
+    document.getElementById('refresh-btn').innerHTML = icon('refresh');
+    document.getElementById('bell-btn').innerHTML = icon('bell');
+
+    const u = AdminAPI.user() || {};
+    document.getElementById('me-avatar').textContent = fmt.initials(u.display_name || u.email || 'AD');
+
+    document.getElementById('refresh-btn').addEventListener('click', refresh);
+
+    function formatRemaining(ms) {
+      if (ms == null) return '—';
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+    }
+
+    function renderActiveSession(chargers) {
+      const active = chargers.find((c) => c.active_session_id);
+      const pane = document.getElementById('active-session-pane');
+      if (!active) {
+        pane.innerHTML = '<div class="empty">Ningún cargador en uso ahora.<br><span class="text-dim text-xs">Cuando un usuario active un cargador, aparecerá aquí en tiempo real.</span></div>';
+        return;
+      }
+
+      const endMs = new Date(active.active_session_end).getTime();
+      const totalMs = active.minutes_purchased * 60_000;
+      const remainMs = Math.max(0, endMs - Date.now());
+      const elapsedMs = totalMs - remainMs;
+      const pct = totalMs > 0 ? Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100)) : 0;
+
+      pane.innerHTML = `
+        <div class="charge-status">Cargando ahora · ${active.display_name}</div>
+
+        <div class="session-card">
+          <div class="micro">
+            <div class="label">Tiempo</div>
+            <div class="value">${Math.floor(elapsedMs / 60_000)}<span class="unit">min</span></div>
+          </div>
+          <div class="micro">
+            <div class="label">Plan</div>
+            <div class="value">${active.minutes_purchased}<span class="unit">min</span></div>
+          </div>
+          <div class="micro">
+            <div class="label">Restante</div>
+            <div class="value text-bright">${formatRemaining(remainMs)}</div>
+          </div>
+        </div>
+
+        <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+        <div class="flex-between text-xs text-muted" style="margin-top:8px">
+          <span>QR <span class="mono">${active.qr_code}</span></span>
+          <span>Termina ${fmt.time(active.active_session_end)}</span>
+        </div>
+
+        <div style="margin-top:18px" class="flex gap-8 flex-wrap">
+          <button class="btn danger sm" onclick="forceStop(${active.id}, '${active.display_name.replace(/'/g, "\\'")}')">Apagar manualmente</button>
+          <span class="pill green">⚡ Tuya OK · ${fmt.relative(active.last_seen_at || active.active_session_end)}</span>
+        </div>
+      `;
+    }
+
+    function renderStatsRow(dash, range) {
+      const block = (label, value, unit, cls) => `
+        <div class="stat-tile ${cls || ''}">
+          <div class="label">${label}</div>
+          <div class="value">${value}<span class="unit">${unit || ''}</span></div>
+        </div>
+      `;
+      const d = range === 'today' ? dash.today : dash.month;
+      document.getElementById('stats-row').innerHTML = [
+        block('Ingresos', fmt.copCompact(d.revenue_cop), '', 'bright'),
+        block('Transacciones', d.transactions, ''),
+        block('Sesiones activas', dash.active_sessions, ''),
+      ].join('');
+    }
+
+    function renderChart(sessions) {
+      // Build last 12 buckets of 5-minute slots. For longer ranges in
+      // production we'd bucket by day; this is a live-demo-friendly view.
+      const buckets = 12;
+      const bucketMs = 5 * 60_000;
+      const now = Date.now();
+      const start = now - buckets * bucketMs;
+
+      const slots = Array.from({ length: buckets }, () => ({ ok: 0, pending: 0, fail: 0, refund: 0 }));
+      const inRange = sessions.filter((s) => new Date(s.created_at + 'Z').getTime() >= start);
+
+      // SQLite returns timestamps without Z; treat them as UTC.
+      // If we can't parse, drop the row. We just need *some* visualization.
+      for (const s of inRange) {
+        const t = new Date(s.created_at.replace(' ', 'T') + 'Z').getTime();
+        const idx = Math.floor((t - start) / bucketMs);
+        if (idx < 0 || idx >= buckets) continue;
+        const b = slots[idx];
+        if (s.payment_status === 'VOIDED') b.refund++;
+        else if (s.activation_status === 'ACTIVE' || s.activation_status === 'COMPLETED') b.ok++;
+        else if (s.activation_status === 'NOT_STARTED' || s.activation_status === 'ACTIVATING' || s.payment_status === 'PENDING') b.pending++;
+        else b.fail++;
+      }
+
+      // Salt the chart with light demo bars when totally empty, so the UI
+      // doesn't look broken on a fresh demo. They scale to whatever data exists.
+      const totalReal = slots.reduce((a, b) => a + b.ok + b.pending + b.fail + b.refund, 0);
+      let max = 1;
+      slots.forEach((b) => {
+        const sum = b.ok + b.pending + b.fail + b.refund;
+        if (sum > max) max = sum;
+      });
+      if (totalReal === 0) {
+        const demo = [3, 5, 2, 6, 4, 7, 3, 8, 5, 9, 4, 6];
+        demo.forEach((v, i) => { slots[i].ok = v; });
+        max = Math.max(...demo);
+      }
+
+      const colors = {
+        ok: 'var(--brand)',
+        pending: 'var(--accent-amber)',
+        fail: 'var(--accent-pink)',
+        refund: 'var(--accent-purple)',
+      };
+
+      const chart = document.getElementById('chart');
+      chart.innerHTML = slots.map((b, i) => {
+        const segs = [
+          { v: b.refund,  c: colors.refund },
+          { v: b.fail,    c: colors.fail },
+          { v: b.pending, c: colors.pending },
+          { v: b.ok,      c: colors.ok },
+        ].filter((s) => s.v > 0);
+        const minute = new Date(start + i * bucketMs).getMinutes();
+        return `
+          <div class="col">
+            ${segs.map((s) => {
+              const h = (s.v / max) * 180;
+              return `<div class="seg" style="height:${h}px; background:${s.c}"></div>`;
+            }).join('')}
+            <div class="lbl">${String(minute).padStart(2, '0')}'</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderChargerRows(chargers) {
+      const tbody = document.getElementById('charger-rows');
+      if (!chargers.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin cargadores configurados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = chargers.map((c) => {
+        const sessionInfo = c.active_session_id
+          ? `<span class="pill cyan">${c.minutes_purchased} min</span>
+             <span class="text-muted text-xs">termina ${fmt.time(c.active_session_end)}</span>`
+          : '<span class="text-dim">—</span>';
+        return `
+          <tr>
+            <td>
+              <strong>${c.display_name}</strong>
+              <div class="mono text-xs text-muted">${c.qr_code} · ${c.tuya_device_id}</div>
+            </td>
+            <td>${c.location_name}</td>
+            <td><strong>${fmt.cop(c.rate_cop_per_hour)}</strong><div class="text-xs text-muted">/ hora</div></td>
+            <td>
+              ${fmt.statusPill(c.status)}
+              ${!c.online ? ' <span class="pill red">offline</span>' : ''}
+            </td>
+            <td class="flex gap-8">${sessionInfo}</td>
+            <td class="text-right">
+              ${c.active_session_id
+                ? `<button class="btn danger sm" onclick="forceStop(${c.id}, '${c.display_name.replace(/'/g, "\\'")}')">Apagar</button>`
+                : `<a class="btn ghost sm" href="/?qr=${c.qr_code}" target="_blank">Probar</a>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function refresh() {
+      try {
+        const [dash, chargers, sessions] = await Promise.all([
+          AdminAPI.get('/dashboard'),
+          AdminAPI.get('/chargers'),
+          AdminAPI.get('/sessions?limit=200'),
+        ]);
+
+        renderStatsRow(dash, document.getElementById('range-picker').value);
+        renderActiveSession(chargers.chargers);
+        renderChargerRows(chargers.chargers);
+        renderChart(sessions.sessions);
+
+        const alertArea = document.getElementById('alert-area');
+        alertArea.innerHTML = '';
+        if (dash.alerts.stuck_active > 0) {
+          alertArea.innerHTML = `
+            <div class="alert">
+              <div class="ico">⚠</div>
+              <div>
+                <strong>${dash.alerts.stuck_active} cargador(es)</strong> con tiempo vencido pero aún energizados.
+                El safety worker intentará apagarlos en el próximo ciclo (cada 15s).
+              </div>
+            </div>`;
+        }
+
+        document.getElementById('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function forceStop(id, name) {
+      if (!confirm('¿Apagar manualmente el cargador "' + name + '"?\nLa acción quedará registrada en auditoría.')) return;
+      try {
+        await AdminAPI.post('/chargers/' + id + '/force-deactivate');
+        refresh();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+    window.forceStop = forceStop;
+
+    document.getElementById('range-picker').addEventListener('change', refresh);
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "inelmec-charger-system",
+  "version": "0.1.0",
+  "description": "Sistema de cargadores eléctricos comunales pagos para INELMEC S.A.S. — Wompi + Tuya IoT Cloud",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev": "node --watch backend/src/server.js",
+    "migrate": "node backend/src/db/migrate.js",
+    "seed": "node backend/src/db/seed.js",
+    "test:e2e": "node scripts/e2e-test.js",
+    "simulate:wompi": "node scripts/simulate-wompi-webhook.js",
+    "vercel-build": "echo 'no build step needed; serverless function bundles automatically'"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "qrcode": "^1.5.4",
+    "dotenv": "^16.4.5",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "INELMEC S.A.S.",
+  "license": "UNLICENSED"
+}

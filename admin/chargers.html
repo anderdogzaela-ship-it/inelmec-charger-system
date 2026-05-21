@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cargadores · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="shell">
+    <div id="sidebar-mount"></div>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">Páginas / Cargadores</div>
+          <h1>Cargadores</h1>
+        </div>
+        <div class="grow"></div>
+        <button class="btn ghost sm" id="refresh-btn">↻ Actualizar</button>
+      </header>
+
+      <section class="card elevated">
+        <div class="head">
+          <h2>Dispositivos Tuya autorizados</h2>
+          <span class="text-muted text-xs" id="last-update"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Cargador</th>
+                <th>Ubicación</th>
+                <th>Device ID</th>
+                <th>Tarifa</th>
+                <th>Estado</th>
+                <th>Conectividad</th>
+                <th>Sesión activa</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="list">
+              <tr><td colspan="8" class="empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').outerHTML = renderShell('chargers');
+    document.getElementById('refresh-btn').addEventListener('click', refresh);
+
+    async function refresh() {
+      const data = await AdminAPI.get('/chargers');
+      const list = document.getElementById('list');
+      if (!data.chargers.length) {
+        list.innerHTML = '<tr><td colspan="8" class="empty">Sin cargadores configurados</td></tr>';
+        return;
+      }
+      list.innerHTML = data.chargers.map((c) => {
+        const remain = c.active_session_end
+          ? Math.max(0, Math.round((new Date(c.active_session_end).getTime() - Date.now()) / 60_000))
+          : null;
+        return `
+          <tr>
+            <td>
+              <strong>${c.display_name}</strong>
+              <div class="mono text-xs text-muted">${c.qr_code}</div>
+            </td>
+            <td>${c.location_name}</td>
+            <td class="mono text-xs">${c.tuya_device_id}</td>
+            <td><strong>${fmt.cop(c.rate_cop_per_hour)}</strong><div class="text-xs text-muted">/h</div></td>
+            <td>${fmt.statusPill(c.status)}</td>
+            <td>${c.online
+              ? '<span class="pill green">En línea</span>'
+              : '<span class="pill red">Offline</span>'}</td>
+            <td>${remain != null
+              ? `<span class="pill cyan">${remain} min</span>`
+              : '<span class="text-dim">—</span>'}</td>
+            <td class="text-right flex gap-8" style="justify-content:flex-end">
+              ${c.active_session_id
+                ? `<button class="btn danger sm" onclick="forceStop(${c.id}, '${c.display_name.replace(/'/g, "\\'")}')">Apagar</button>`
+                : `<a class="btn ghost sm" href="/?qr=${c.qr_code}" target="_blank">Probar</a>`}
+              <button class="btn ghost sm" onclick="toggleOnline(${c.id})" title="Toggle online (demo)">⚙</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      document.getElementById('last-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO');
+    }
+
+    async function forceStop(id, name) {
+      if (!confirm('Forzar apagado de "' + name + '"?')) return;
+      try { await AdminAPI.post('/chargers/' + id + '/force-deactivate'); refresh(); }
+      catch (err) { alert(err.message); }
+    }
+    async function toggleOnline(id) {
+      try {
+        const r = await AdminAPI.post('/dev/toggle-charger-online/' + id);
+        alert('Conectividad simulada: ' + (r.online ? 'EN LÍNEA' : 'OFFLINE'));
+        refresh();
+      } catch (err) { alert('Solo en modo mock: ' + err.message); }
+    }
+    window.forceStop = forceStop;
+    window.toggleOnline = toggleOnline;
+
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

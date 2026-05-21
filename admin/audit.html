@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Auditoría · INELMEC EV Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="shell">
+    <div id="sidebar-mount"></div>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="crumbs">Páginas / Auditoría</div>
+          <h1>Registro de auditoría</h1>
+        </div>
+        <div class="grow"></div>
+        <select class="field" id="filter" style="width:auto; padding: 9px 14px">
+          <option value="">Todos los eventos</option>
+          <option value="activation.start">activation.start</option>
+          <option value="activation.confirmed">activation.confirmed</option>
+          <option value="activation.timeout">activation.timeout</option>
+          <option value="activation.error">activation.error</option>
+          <option value="deactivation.confirmed">deactivation.confirmed</option>
+          <option value="wompi.approved">wompi.approved</option>
+          <option value="wompi.declined">wompi.declined</option>
+          <option value="safety.alert">safety.alert</option>
+        </select>
+        <button class="btn ghost sm" id="refresh-btn">↻</button>
+      </header>
+
+      <section class="card elevated">
+        <div class="head">
+          <h2>Trazabilidad inmutable</h2>
+          <span class="text-muted text-xs">Cada transición queda registrada — no se permite UPDATE/DELETE</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Fecha</th>
+                <th>Evento</th>
+                <th>Actor</th>
+                <th>Sesión</th>
+                <th>Cargador</th>
+                <th>Payload</th>
+              </tr>
+            </thead>
+            <tbody id="list">
+              <tr><td colspan="7" class="empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').outerHTML = renderShell('audit');
+    document.getElementById('refresh-btn').addEventListener('click', refresh);
+    document.getElementById('filter').addEventListener('change', refresh);
+
+    function eventPill(t) {
+      if (t.startsWith('activation.confirmed') || t.startsWith('deactivation.confirmed')) return `<span class="pill green">${t}</span>`;
+      if (t.includes('timeout') || t.includes('error') || t.includes('alert') || t.includes('failed')) return `<span class="pill red">${t}</span>`;
+      if (t.includes('start')) return `<span class="pill cyan">${t}</span>`;
+      if (t === 'wompi.approved') return `<span class="pill green">${t}</span>`;
+      if (t.startsWith('wompi.')) return `<span class="pill amber">${t}</span>`;
+      if (t.startsWith('admin.')) return `<span class="pill blue">${t}</span>`;
+      return `<span class="pill gray">${t}</span>`;
+    }
+
+    async function refresh() {
+      const filter = document.getElementById('filter').value;
+      const q = filter ? '?event_type=' + encodeURIComponent(filter) + '&limit=300' : '?limit=300';
+      const data = await AdminAPI.get('/audit-log' + q);
+      const list = document.getElementById('list');
+      if (!data.entries.length) {
+        list.innerHTML = '<tr><td colspan="7" class="empty">Sin eventos registrados</td></tr>';
+        return;
+      }
+      list.innerHTML = data.entries.map((e) => `
+        <tr>
+          <td class="mono text-xs">${e.id}</td>
+          <td class="text-xs">${fmt.date(e.created_at)}</td>
+          <td>${eventPill(e.event_type)}</td>
+          <td class="text-xs">${e.actor}</td>
+          <td class="mono text-xs">${e.session_id ? e.session_id.slice(0, 8) : '—'}</td>
+          <td class="mono text-xs">${e.charger_id || '—'}</td>
+          <td class="mono text-xs" style="max-width:480px; white-space:pre-wrap; word-break:break-word">${e.payload ? JSON.stringify(e.payload) : '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
